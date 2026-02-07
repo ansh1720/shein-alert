@@ -18,7 +18,7 @@ CHECK_INTERVAL = 120
 DATA_FILE = "products.json"
 
 # ==========================
-# FLASK (Railway Keep Alive)
+# FLASK (Railway keep-alive)
 # ==========================
 
 app = Flask(__name__)
@@ -53,29 +53,24 @@ stored_products = load_data()
 # ==========================
 
 def send_message(text):
-    try:
-        url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-        payload = {
-            "chat_id": CHANNEL_ID,
-            "text": text,
-            "parse_mode": "HTML"
-        }
-        requests.post(url, data=payload, timeout=10)
-    except Exception as e:
-        print("Telegram error:", e)
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": CHANNEL_ID,
+        "text": text,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": False
+    }
+    requests.post(url, data=payload, timeout=15)
 
 def send_photo(caption, image_url):
-    try:
-        url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto"
-        payload = {
-            "chat_id": CHANNEL_ID,
-            "photo": image_url,
-            "caption": caption,
-            "parse_mode": "HTML"
-        }
-        requests.post(url, data=payload, timeout=15)
-    except Exception as e:
-        print("Telegram photo error:", e)
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto"
+    payload = {
+        "chat_id": CHANNEL_ID,
+        "photo": image_url,
+        "caption": caption,
+        "parse_mode": "HTML"
+    }
+    requests.post(url, data=payload, timeout=20)
 
 # ==========================
 # VOUCHER LOGIC
@@ -90,40 +85,37 @@ def voucher_text(price):
         return "🎟 Eligible for ₹1000 Voucher"
 
 # ==========================
-# FETCH SIZE AVAILABILITY
+# SIZE EXTRACTION (From category API)
 # ==========================
 
-def fetch_available_sizes(product_code):
-    try:
-        detail_url = f"https://www.sheinindia.in/api/product/{product_code}?fields=FULL&format=json"
-        r = requests.get(detail_url, timeout=15)
-        detail = r.json()
+def extract_sizes(product):
+    sizes = set()
 
-        sizes = set()
+    # Shein category response sometimes includes skuList / variantOptions
+    variants = product.get("skuList") or product.get("variantOptions") or []
 
-        variants = detail.get("variants") or detail.get("skuList") or []
+    for v in variants:
+        size = (
+            v.get("size")
+            or v.get("sizeName")
+            or v.get("value")
+        )
 
-        for v in variants:
-            size = v.get("size") or v.get("sizeName") or v.get("value")
-            in_stock = v.get("inStock")
+        in_stock = v.get("inStock")
 
-            if size:
-                if in_stock is None:
-                    sizes.add(size)
-                elif in_stock:
-                    sizes.add(size)
+        if size:
+            if in_stock is None:
+                sizes.add(size)
+            elif in_stock:
+                sizes.add(size)
 
-        return sizes
-
-    except Exception as e:
-        print("Size fetch error:", e)
-        return set()
+    return sizes
 
 # ==========================
 # MONITOR LOOP
 # ==========================
 
-print("🚀 Bot Started")
+print("🚀 SHEINVERSE BOT STARTED")
 
 while True:
     try:
@@ -143,15 +135,18 @@ while True:
                 or 0
             )
 
+            # Image
             image = None
             imgs = p.get("images", [])
             if imgs:
                 image = imgs[0].get("url")
 
+            # Direct Link
             link_path = p.get("url")
             link = "https://www.sheinindia.in" + link_path
 
-            current_sizes = fetch_available_sizes(code)
+            # Extract sizes from category response
+            current_sizes = extract_sizes(p)
 
             previous_data = stored_products.get(code)
 
@@ -221,4 +216,4 @@ while True:
 
     except Exception as e:
         print("Main loop error:", e)
-        time.sleep(10)
+        time.sleep(15)
