@@ -152,7 +152,7 @@ async def monitor():
 
 🔗 <a href="{link}">Open Product</a>
 """
-                                        send_photo(caption, image)
+                                    send_photo(caption, image)
 
                                 else:
                                     product_status[product_id] = in_stock
