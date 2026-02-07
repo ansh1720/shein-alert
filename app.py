@@ -106,7 +106,8 @@ async def monitor():
                 page = await browser.new_page()
 
                 async def handle_response(response):
-                    if "goods" in response.url and response.status==200:
+                    if response.status==200:
+                        print("API:", response.url)
                         try:
                             data = await response.json()
                             products = data.get("info", {}).get("products", [])
